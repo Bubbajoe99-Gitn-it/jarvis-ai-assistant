@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { VoiceOrb } from "@/components/VoiceOrb";
 import { ConversationFeed } from "@/components/ConversationFeed";
 import { TaskCard } from "@/components/TaskCard";
 import { DataWidget } from "@/components/DataWidget";
-import { Mic, MicOff, Search, Settings, Menu } from "lucide-react";
+import { Mic, MicOff, Settings, Shield, Globe, Database, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
 
-// Define message type locally or import if shared
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -16,97 +16,163 @@ interface Message {
 
 export default function Home() {
   const [isListening, setIsListening] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [privacyStatus, setPrivacyStatus] = useState("SECURE");
   const [messages, setMessages] = useState<Message[]>([
-    { id: "1", role: "assistant", content: "Systems online. Good evening, sir. I'm ready for your commands.", timestamp: "20:04:12" }
+    { id: "1", role: "assistant", content: "Astra OS initialized. All systems secure. How can I assist you today?", timestamp: new Date().toLocaleTimeString() }
   ]);
   const [activeTask, setActiveTask] = useState<any>(null);
   const [activeData, setActiveData] = useState<any>(null);
+  const [toolStatus, setToolStatus] = useState<string | null>(null);
 
-  // Simulate "Proactive" behavior
+  // Simulated Speech-to-Text Buffer
+  const [sttBuffer, setSttBuffer] = useState("");
+
   useEffect(() => {
+    // Proactive behavior simulation
     const timer = setTimeout(() => {
       setActiveTask({
         id: "t1",
-        title: "Market Analysis Required",
-        description: "Competitor Q3 earnings report released. Shall I compile a comparison dataset?",
+        title: "Database Discrepancy",
+        description: "Found conflicting entries in your Q4 projections. Run cross-reference search?",
         type: "data",
-        time: "JUST NOW"
+        time: "READY"
       });
-    }, 3000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, []);
 
+  const simulateAISearch = async (query: string) => {
+    setToolStatus("SEARCHING WEB...");
+    await new Promise(r => setTimeout(r, 1500));
+    setToolStatus("QUERYING DATABASES...");
+    await new Promise(r => setTimeout(r, 1200));
+    setToolStatus("AGGREGATING DATA...");
+    await new Promise(r => setTimeout(r, 1000));
+    setToolStatus(null);
+
+    const response = "I've analyzed the web and internal databases. Here's the compiled dataset for your request.";
+    
+    setMessages(prev => [...prev, { 
+      id: Date.now().toString(), 
+      role: "assistant", 
+      content: response, 
+      timestamp: new Date().toLocaleTimeString() 
+    }]);
+
+    setActiveData({
+      id: "d" + Date.now(),
+      source: "GLOBAL AGGREGATED",
+      query: query,
+      summary: "Consolidated report from 12 sources including market indices and proprietary databases.",
+      dataPoints: [
+        { label: "Confidence", value: "98.4%" },
+        { label: "Sources", value: "12 Verified" },
+        { label: "Latency", value: "240ms" },
+        { label: "Integrity", value: "High" }
+      ]
+    });
+  };
+
   const handleMicToggle = () => {
-    setIsListening(!isListening);
-    if (!isListening) {
-      // Simulate user input after a delay
-      setTimeout(() => {
-        setMessages(prev => [...prev, { 
-          id: Date.now().toString(), 
-          role: "user", 
-          content: "Search the latest Q3 earnings for TechCorp and create a summary table.", 
-          timestamp: new Date().toLocaleTimeString() 
-        }]);
-        setIsListening(false);
-        
-        // Simulate AI Response
-        setTimeout(() => {
-           setMessages(prev => [...prev, { 
-            id: (Date.now() + 1).toString(), 
-            role: "assistant", 
-            content: "Scanning external databases... I've found the Q3 report. Compiling dataset now.", 
-            timestamp: new Date().toLocaleTimeString() 
-          }]);
-          
-          setActiveData({
-            id: "d1",
-            source: "SEC EDGAR DATABASE",
-            query: "TechCorp Q3 Earnings",
-            summary: "Revenue up 15% YoY. Cloud division growth accelerated to 32%.",
-            dataPoints: [
-              { label: "Revenue", value: "$45.2B" },
-              { label: "Net Income", value: "$12.4B" },
-              { label: "EPS", value: "$3.45" },
-              { label: "YoY Growth", value: "+15.2%" }
-            ]
-          });
-          setActiveTask(null); // Clear task if it was related
-        }, 1500);
-        
-      }, 2000);
+    if (isListening) {
+      setIsListening(false);
+      if (sttBuffer.length > 0) {
+        processUserQuery(sttBuffer);
+      }
+    } else {
+      setIsListening(true);
+      setSttBuffer("");
+      // Simulate real-time streaming STT
+      let i = 0;
+      const text = "Compile a report on current AI hardware trends";
+      const interval = setInterval(() => {
+        setSttBuffer(text.substring(0, i + 1));
+        i++;
+        if (i >= text.length) clearInterval(interval);
+      }, 50);
     }
   };
 
+  const processUserQuery = (query: string) => {
+    setMessages(prev => [...prev, { 
+      id: Date.now().toString(), 
+      role: "user", 
+      content: query, 
+      timestamp: new Date().toLocaleTimeString() 
+    }]);
+    setIsProcessing(true);
+    simulateAISearch(query).then(() => setIsProcessing(false));
+  };
+
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden">
-      {/* Background Ambience */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/80 to-background pointer-events-none z-0" />
-      
+    <div className="min-h-screen flex flex-col relative overflow-hidden bg-background">
+      {/* Privacy Indicator Layer */}
+      <div className="fixed top-0 left-0 right-0 h-1 z-50 flex">
+        <div className={`flex-1 transition-colors duration-500 ${isListening ? 'bg-primary' : 'bg-emerald-500/30'}`} />
+      </div>
+
       {/* Header */}
-      <header className="relative z-10 p-6 flex justify-between items-center glass-panel m-4 rounded-full">
-        <div className="flex items-center gap-2">
-           <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-           <span className="font-display font-bold tracking-widest text-primary text-sm">ASTRA OS</span>
+      <header className="relative z-20 p-4 pt-6 flex justify-between items-center glass-panel m-4 rounded-2xl border-primary/20">
+        <div className="flex items-center gap-3">
+           <div className={`w-3 h-3 rounded-full shadow-[0_0_10px_currentColor] transition-colors duration-300 ${isListening ? 'text-primary animate-pulse' : 'text-emerald-500'}`}>
+              <Shield className="w-full h-full" />
+           </div>
+           <div>
+             <h1 className="font-display font-bold tracking-tighter text-white text-lg leading-none">ASTRA</h1>
+             <span className="text-[10px] font-tech text-primary uppercase tracking-[0.2em]">Quantum Core V4</span>
+           </div>
         </div>
-        <div className="flex gap-4 text-xs font-mono text-muted-foreground">
-          <span>MEM: 64%</span>
-          <span>NET: SECURE</span>
+        
+        <div className="hidden md:flex gap-6 items-center">
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] text-muted-foreground font-mono">ENCRYPTION</span>
+            <span className="text-xs text-emerald-400 font-tech">AES-256 ACTIVE</span>
+          </div>
+          <div className="w-px h-8 bg-white/10" />
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] text-muted-foreground font-mono">LOCATION</span>
+            <span className="text-xs text-primary font-tech">ON-DEVICE</span>
+          </div>
         </div>
-        <Button variant="ghost" size="icon" className="text-white hover:text-primary">
-          <Settings className="w-5 h-5" />
+
+        <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 group">
+          <Settings className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
         </Button>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 relative z-10 flex flex-col max-w-md mx-auto w-full px-4 pb-24">
+      {/* Main Interface */}
+      <main className="flex-1 relative z-10 flex flex-col max-w-2xl mx-auto w-full px-4">
         
-        {/* Dynamic Widget Area (Tasks/Data) */}
-        <div className="mb-4 min-h-[120px]">
+        {/* Status Bar */}
+        <AnimatePresence>
+          {toolStatus && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex items-center justify-center gap-2 mb-4"
+            >
+              <div className="flex gap-1">
+                <span className="w-1 h-1 bg-primary animate-bounce [animation-delay:-0.3s]" />
+                <span className="w-1 h-1 bg-primary animate-bounce [animation-delay:-0.15s]" />
+                <span className="w-1 h-1 bg-primary animate-bounce" />
+              </div>
+              <span className="text-[10px] font-display tracking-widest text-primary uppercase">{toolStatus}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[40vh] py-2 scrollbar-hide">
           {activeTask && (
             <TaskCard 
               task={activeTask} 
               onAction={(action) => {
-                if (action === "approve") handleMicToggle(); // Simulate talking
+                if (action === "approve") {
+                  setIsListening(true);
+                  setSttBuffer("Execute cross-reference search on Q4 projections.");
+                  setTimeout(() => processUserQuery("Execute cross-reference search on Q4 projections."), 1000);
+                }
                 setActiveTask(null);
               }} 
             />
@@ -114,33 +180,69 @@ export default function Home() {
           {activeData && <DataWidget result={activeData} />}
         </div>
 
-        {/* Voice Interface */}
-        <div className="flex-1 flex flex-col justify-end">
-          <VoiceOrb isListening={isListening} />
-          
-          {/* Conversation History */}
-          <div className="h-64 mt-4 relative">
-             <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10 pointer-events-none" />
+        <div className="flex-1 flex flex-col justify-end pb-32">
+          <div className="relative">
+            <VoiceOrb isListening={isListening || isProcessing} />
+            
+            {/* Real-time STT Preview */}
+            <AnimatePresence>
+              {isListening && sttBuffer && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="absolute bottom-0 left-0 right-0 text-center pb-8"
+                >
+                  <p className="text-lg font-tech text-primary/80 italic">"{sttBuffer}"</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="h-48 relative">
              <ConversationFeed messages={messages} />
           </div>
         </div>
-
       </main>
 
-      {/* Bottom Controls */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 z-20 flex justify-center items-center bg-gradient-to-t from-background to-transparent pb-10">
-        <Button 
-          size="lg"
-          className={`
-            h-16 w-16 rounded-full border-2 transition-all duration-300 shadow-[0_0_30px_var(--color-primary)]
-            ${isListening 
-              ? "bg-red-500/20 border-red-500 text-red-500 hover:bg-red-500/30" 
-              : "bg-primary/10 border-primary text-primary hover:bg-primary/20 hover:scale-105"}
-          `}
-          onClick={handleMicToggle}
-        >
-          {isListening ? <MicOff className="w-8 h-8" /> : <Mic className="w-8 h-8" />}
-        </Button>
+      {/* Interaction Bar */}
+      <div className="fixed bottom-0 left-0 right-0 p-8 z-30 flex flex-col items-center bg-gradient-to-t from-background via-background/90 to-transparent">
+        <div className="flex items-center gap-8 mb-4">
+          <div className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+            <Globe className="w-4 h-4 text-white" />
+            <span className="text-[8px] font-tech uppercase tracking-tighter">Web</span>
+          </div>
+          <div className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+            <Database className="w-4 h-4 text-white" />
+            <span className="text-[8px] font-tech uppercase tracking-tighter">Vault</span>
+          </div>
+          
+          <Button 
+            size="lg"
+            className={`
+              h-20 w-20 rounded-full border-2 transition-all duration-500 group relative
+              ${isListening 
+                ? "bg-primary/20 border-primary text-primary shadow-[0_0_40px_var(--color-primary)]" 
+                : "bg-white/5 border-white/10 text-white hover:border-primary/50 hover:text-primary"}
+            `}
+            onClick={handleMicToggle}
+          >
+            <div className="absolute inset-0 rounded-full border border-primary/20 group-hover:animate-ping" />
+            {isListening ? <Mic className="w-10 h-10" /> : <MicOff className="w-10 h-10 opacity-50" />}
+          </Button>
+
+          <div className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+            <Cpu className="w-4 h-4 text-white" />
+            <span className="text-[8px] font-tech uppercase tracking-tighter">Tool</span>
+          </div>
+          <div className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity text-primary">
+            <Shield className="w-4 h-4" />
+            <span className="text-[8px] font-tech uppercase tracking-tighter">Safe</span>
+          </div>
+        </div>
+        
+        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.3em]">
+          {isListening ? "Listening Mode Active" : "Push to talk / Automatic Wake enabled"}
+        </p>
       </div>
 
     </div>
