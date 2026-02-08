@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { VoiceOrb } from "@/components/VoiceOrb";
+import { VoiceOrb, OrbState } from "@/components/VoiceOrb";
 import { ConversationFeed } from "@/components/ConversationFeed";
 import { TaskCard } from "@/components/TaskCard";
 import { DataWidget } from "@/components/DataWidget";
-import { Mic, MicOff, Settings, Shield, Globe, Database, Cpu } from "lucide-react";
+import { WakeWordConfig } from "@/components/WakeWordConfig";
+import { Mic, MicOff, Settings, Shield, Globe, Database, Cpu, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -15,11 +16,11 @@ interface Message {
 }
 
 export default function Home() {
-  const [isListening, setIsListening] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [privacyStatus, setPrivacyStatus] = useState("SECURE");
+  const [orbState, setOrbState] = useState<OrbState>("standby");
+  const [wakeWord, setWakeWord] = useState("Jarvis");
+  const [isAlwaysOn, setIsAlwaysOn] = useState(true);
   const [messages, setMessages] = useState<Message[]>([
-    { id: "1", role: "assistant", content: "Astra OS initialized. All systems secure. How can I assist you today?", timestamp: new Date().toLocaleTimeString() }
+    { id: "1", role: "assistant", content: "Astra OS initialized. Standing by for wake word...", timestamp: new Date().toLocaleTimeString() }
   ]);
   const [activeTask, setActiveTask] = useState<any>(null);
   const [activeData, setActiveData] = useState<any>(null);
@@ -27,6 +28,7 @@ export default function Home() {
 
   // Simulated Speech-to-Text Buffer
   const [sttBuffer, setSttBuffer] = useState("");
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     // Proactive behavior simulation
@@ -42,7 +44,35 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Inactivity Logic
+  useEffect(() => {
+    if (orbState === "listening" || orbState === "processing") {
+      clearTimeout(inactivityTimer.current);
+      inactivityTimer.current = setTimeout(() => {
+         if (isAlwaysOn) {
+            setOrbState("standby");
+            setSttBuffer("");
+         }
+      }, 10000); // 10s inactivity returns to standby
+    }
+    return () => clearTimeout(inactivityTimer.current);
+  }, [orbState, isAlwaysOn]);
+
+  const simulateWakeDetection = () => {
+    if (orbState === "standby") {
+      // Audio cue simulation (visual only here)
+      setOrbState("listening");
+      setMessages(prev => [...prev, {
+        id: "sys-" + Date.now(),
+        role: "assistant",
+        content: `Wake word "${wakeWord}" detected. Listening...`,
+        timestamp: new Date().toLocaleTimeString()
+      }]);
+    }
+  };
+
   const simulateAISearch = async (query: string) => {
+    setOrbState("processing");
     setToolStatus("SEARCHING WEB...");
     await new Promise(r => setTimeout(r, 1500));
     setToolStatus("QUERYING DATABASES...");
@@ -50,6 +80,7 @@ export default function Home() {
     setToolStatus("AGGREGATING DATA...");
     await new Promise(r => setTimeout(r, 1000));
     setToolStatus(null);
+    setOrbState("speaking");
 
     const response = "I've analyzed the web and internal databases. Here's the compiled dataset for your request.";
     
@@ -72,16 +103,20 @@ export default function Home() {
         { label: "Integrity", value: "High" }
       ]
     });
+    
+    setTimeout(() => {
+      if (isAlwaysOn) setOrbState("standby");
+    }, 2000);
   };
 
   const handleMicToggle = () => {
-    if (isListening) {
-      setIsListening(false);
+    if (orbState === "listening") {
+      setOrbState(isAlwaysOn ? "standby" : "standby"); // Force standby
       if (sttBuffer.length > 0) {
         processUserQuery(sttBuffer);
       }
     } else {
-      setIsListening(true);
+      setOrbState("listening");
       setSttBuffer("");
       // Simulate real-time streaming STT
       let i = 0;
@@ -101,21 +136,20 @@ export default function Home() {
       content: query, 
       timestamp: new Date().toLocaleTimeString() 
     }]);
-    setIsProcessing(true);
-    simulateAISearch(query).then(() => setIsProcessing(false));
+    simulateAISearch(query);
   };
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden bg-background">
       {/* Privacy Indicator Layer */}
       <div className="fixed top-0 left-0 right-0 h-1 z-50 flex">
-        <div className={`flex-1 transition-colors duration-500 ${isListening ? 'bg-primary' : 'bg-emerald-500/30'}`} />
+        <div className={`flex-1 transition-colors duration-500 ${orbState === "listening" ? 'bg-primary' : 'bg-emerald-500/30'}`} />
       </div>
 
       {/* Header */}
       <header className="relative z-20 p-4 pt-6 flex justify-between items-center glass-panel m-4 rounded-2xl border-primary/20">
         <div className="flex items-center gap-3">
-           <div className={`w-3 h-3 rounded-full shadow-[0_0_10px_currentColor] transition-colors duration-300 ${isListening ? 'text-primary animate-pulse' : 'text-emerald-500'}`}>
+           <div className={`w-3 h-3 rounded-full shadow-[0_0_10px_currentColor] transition-colors duration-300 ${orbState !== "standby" ? 'text-primary animate-pulse' : 'text-emerald-500'}`}>
               <Shield className="w-full h-full" />
            </div>
            <div>
@@ -126,19 +160,24 @@ export default function Home() {
         
         <div className="hidden md:flex gap-6 items-center">
           <div className="flex flex-col items-end">
-            <span className="text-[10px] text-muted-foreground font-mono">ENCRYPTION</span>
-            <span className="text-xs text-emerald-400 font-tech">AES-256 ACTIVE</span>
+            <span className="text-[10px] text-muted-foreground font-mono">STATUS</span>
+            <span className={`text-xs font-tech transition-colors ${orbState === "standby" ? "text-emerald-400" : "text-primary"}`}>
+              {orbState === "standby" ? "PASSIVE LISTENING" : "ACTIVE PROCESSING"}
+            </span>
           </div>
           <div className="w-px h-8 bg-white/10" />
           <div className="flex flex-col items-end">
-            <span className="text-[10px] text-muted-foreground font-mono">LOCATION</span>
-            <span className="text-xs text-primary font-tech">ON-DEVICE</span>
+            <span className="text-[10px] text-muted-foreground font-mono">WAKE WORD</span>
+            <span className="text-xs text-white font-tech">"{wakeWord.toUpperCase()}"</span>
           </div>
         </div>
 
-        <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 group">
-          <Settings className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-        </Button>
+        <WakeWordConfig 
+           wakeWord={wakeWord} 
+           setWakeWord={setWakeWord} 
+           isAlwaysOn={isAlwaysOn} 
+           setIsAlwaysOn={setIsAlwaysOn}
+        />
       </header>
 
       {/* Main Interface */}
@@ -169,7 +208,7 @@ export default function Home() {
               task={activeTask} 
               onAction={(action) => {
                 if (action === "approve") {
-                  setIsListening(true);
+                  setOrbState("listening");
                   setSttBuffer("Execute cross-reference search on Q4 projections.");
                   setTimeout(() => processUserQuery("Execute cross-reference search on Q4 projections."), 1000);
                 }
@@ -182,17 +221,38 @@ export default function Home() {
 
         <div className="flex-1 flex flex-col justify-end pb-32">
           <div className="relative">
-            <VoiceOrb isListening={isListening || isProcessing} />
+            <VoiceOrb state={orbState} />
             
             {/* Real-time STT Preview */}
             <AnimatePresence>
-              {isListening && sttBuffer && (
+              {orbState === "listening" && sttBuffer && (
                 <motion.div 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="absolute bottom-0 left-0 right-0 text-center pb-8"
                 >
                   <p className="text-lg font-tech text-primary/80 italic">"{sttBuffer}"</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            
+             {/* Standby Message */}
+             <AnimatePresence>
+              {orbState === "standby" && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute bottom-0 left-0 right-0 text-center pb-8"
+                >
+                  <Button 
+                    variant="ghost" 
+                    className="text-xs font-mono text-emerald-500/50 hover:text-emerald-400 hover:bg-emerald-500/10"
+                    onClick={simulateWakeDetection}
+                  >
+                    <Zap className="w-3 h-3 mr-2" />
+                    SIMULATE WAKE WORD "{wakeWord.toUpperCase()}"
+                  </Button>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -220,14 +280,14 @@ export default function Home() {
             size="lg"
             className={`
               h-20 w-20 rounded-full border-2 transition-all duration-500 group relative
-              ${isListening 
+              ${orbState === "listening"
                 ? "bg-primary/20 border-primary text-primary shadow-[0_0_40px_var(--color-primary)]" 
                 : "bg-white/5 border-white/10 text-white hover:border-primary/50 hover:text-primary"}
             `}
             onClick={handleMicToggle}
           >
             <div className="absolute inset-0 rounded-full border border-primary/20 group-hover:animate-ping" />
-            {isListening ? <Mic className="w-10 h-10" /> : <MicOff className="w-10 h-10 opacity-50" />}
+            {orbState === "listening" ? <Mic className="w-10 h-10" /> : <MicOff className="w-10 h-10 opacity-50" />}
           </Button>
 
           <div className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
@@ -241,7 +301,7 @@ export default function Home() {
         </div>
         
         <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.3em]">
-          {isListening ? "Listening Mode Active" : "Push to talk / Automatic Wake enabled"}
+          {orbState === "standby" ? "PASSIVE MONITORING ENABLED" : "ACTIVE SESSION RECORDING"}
         </p>
       </div>
 
