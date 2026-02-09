@@ -1,0 +1,7 @@
+{
+  "appId": "com.example.jarvis",
+  "appName": "JarvisAssistant",
+  "webDir": "www",
+  "npmClient": "npm",
+  "cordova": {}
+}
