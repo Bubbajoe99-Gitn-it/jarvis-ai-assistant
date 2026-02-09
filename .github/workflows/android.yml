@@ -24,7 +24,11 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-
+        
+         - name: Ensure Capacitor is installed
+  run: |
+    npm install @capacitor/core @capacitor/android
+    
       - name: Sync Capacitor
         run: npx cap sync android
 
