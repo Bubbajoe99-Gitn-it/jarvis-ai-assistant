@@ -10,34 +10,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout repo
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      # Step 2: Set up JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           distribution: temurin
           java-version: 17
 
+      # Step 3: Set up Node.js
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
+      # Step 4: Clean npm cache (optional but prevents stale deps)
+      - name: Clean npm cache
+        run: npm cache clean --force
+
+      # Step 5: Install dependencies (force fresh install)
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm ci
+          npm install @capacitor/core @capacitor/android
+          ls -la node_modules/@capacitor/core
 
-      - name: Install Capacitor explicitly
-        run: npm install @capacitor/core @capacitor/android
+      # Step 6: Build web assets (if you have a build step)
+      - name: Build web assets
+        run: npm run build || echo "No build step defined"
 
+      # Step 7: Sync Capacitor
       - name: Sync Capacitor
         run: npx cap sync android
 
+      # Step 8: Build APK
       - name: Build APK
         run: |
           cd android
           ./gradlew assembleDebug
 
+      # Step 9: Upload APK artifact
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
